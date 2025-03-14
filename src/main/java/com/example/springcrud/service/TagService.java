@@ -1,6 +1,7 @@
 package com.example.springcrud.service;
 
 import com.example.springcrud.model.Tag;
+import com.example.springcrud.repository.TagRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.r2dbc.core.DatabaseClient;
 import org.springframework.stereotype.Service;
@@ -13,25 +14,34 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TagService {
 
-    private final DatabaseClient databaseClient;
+    private final TagRepository repository;
 
     public Mono<List<Tag>> findAllCoffeeTags(long coffeeId) {
-        String query = """
-            SELECT t.id AS tag_id, t.name AS tag_name
-            FROM tag t
-            INNER JOIN coffee_tag ct ON t.id = ct.tag_id
-            WHERE ct.coffee_id = :coffeeId
-            """;
-
-        return databaseClient.sql(query)
-                .bind("coffeeId", coffeeId)
-                .map((row, metadata) -> {
-                    Tag tag = new Tag();
-                    tag.setId(row.get("tag_id", Long.class));
-                    tag.setName(row.get("tag_name", String.class));
-                    return tag;
-                })
-                .all()
+        return repository.findAllCoffeeTags(coffeeId)
                 .collectList();
+    }
+
+    public Mono<String> createTag(Tag tag) {
+        return repository.createTag(tag)
+                .thenReturn("Created")
+                .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));
+    }
+
+    public Mono<String> createCoffeeTag(Long coffeeId, Long id) {
+        return repository.createCoffeeTag(coffeeId,id)
+                .thenReturn("Created")
+                .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));
+    }
+
+    public Mono<String> putTag (Long id, Tag tag) {
+        return repository.putTag(id, tag)
+                .thenReturn("Updated")
+                .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));
+    }
+
+    public Mono<String> deleteTag(Long id) {
+        return repository.deleteTag(id)
+                .thenReturn("Deleted")
+                .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));
     }
 }

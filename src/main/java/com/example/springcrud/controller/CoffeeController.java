@@ -1,13 +1,19 @@
 package com.example.springcrud.controller;
 
 import com.example.springcrud.model.Coffee;
+import com.example.springcrud.model.OriginDetails;
 import com.example.springcrud.service.CoffeeService;
+import com.example.springcrud.service.OriginalDetailsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 
 @RestController
@@ -15,10 +21,26 @@ import reactor.core.publisher.Mono;
 @RequestMapping("/coffee")
 public class CoffeeController {
     private final CoffeeService service;
+    private final OriginalDetailsService detailsService;
 
     @GetMapping
     public Flux<Coffee> getAllCoffee() {
-        return service.getAllCoffee();
+        return service.getAllCoffee()
+                .switchIfEmpty(Flux.error(new ResponseStatusException(HttpStatus.NOT_FOUND, "No coffee found")));
+    }
+
+    @GetMapping("/{id}/with-details")
+    public Mono<Map<String, Object>> getCoffeeWithDetails(@PathVariable Long id) {
+        return Mono.zip(
+                    service.getCoffeeById(id),
+                    detailsService.findByCoffeeId(id).defaultIfEmpty(new OriginDetails())
+                )
+                .map(tuple -> {
+                    Map<String, Object> response = new LinkedHashMap<>();
+                    response.put("coffee", tuple.getT1());
+                    response.put("details", tuple.getT2());
+                    return response;
+                });
     }
 
     @PostMapping

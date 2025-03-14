@@ -21,12 +21,14 @@ public class CoffeeService {
     }
 
     public Mono<String> postCoffee(Coffee coffee) {
+        if (coffee.getCount() == null || coffee.getName() == null) return Mono.error(new RuntimeException("You must to insert both fields: name and count"));
         return repository.createCoffee(coffee)
                 .thenReturn("Created")
                 .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));
     }
 
     public Mono<String> putCoffee(Coffee coffee, Long id) {
+        if (coffee.getCount() == null || coffee.getName() == null) return Mono.error(new RuntimeException("You must to insert both fields: name and count"));
         return repository.putCoffee(id, coffee)
                 .thenReturn("Updated")
                 .onErrorResume(e -> Mono.just("Error: " + e.getMessage()));

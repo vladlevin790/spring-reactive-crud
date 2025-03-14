@@ -1,4 +1,4 @@
-package com.example.springcrud.repository;
+package com.example.springcrud.repository.custom;
 
 import com.example.springcrud.model.Coffee;
 import org.springframework.stereotype.Repository;

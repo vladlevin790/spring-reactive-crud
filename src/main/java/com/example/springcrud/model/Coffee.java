@@ -21,8 +21,6 @@ public class Coffee {
 
     private Long count;
 
-    private Long originDetailsId;
-
     private List<Tag> coffeTag = new ArrayList<>();
 
     public Mono<List<Tag>> loadTags(TagService tagService) {

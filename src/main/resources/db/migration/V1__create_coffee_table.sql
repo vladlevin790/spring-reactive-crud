@@ -1,0 +1,5 @@
+CREATE TABLE coffee(
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(120) NOT NULL,
+    count BIGINT
+);

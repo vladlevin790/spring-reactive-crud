@@ -1,8 +1,7 @@
 package com.example.springcrud.dao;
 
 import com.example.springcrud.model.Coffee;
-import com.example.springcrud.model.OriginDetails;
-import com.example.springcrud.repository.CustomCoffeeRepository;
+import com.example.springcrud.repository.custom.CustomCoffeeRepository;
 import com.example.springcrud.service.TagService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.r2dbc.core.DatabaseClient;
@@ -19,11 +18,7 @@ public class CoffeeRepositoryImpl implements CustomCoffeeRepository {
     @Override
     public Flux<Coffee> findAllCoffees() {
         String query = """
-            SELECT coffee.id, coffee.name, coffee.count, coffee.origin_details_id,
-                   origin_details.id AS origin_id, origin_details.farm, 
-                   origin_details.region, origin_details.country
-            FROM coffee
-            INNER JOIN origin_details ON coffee.origin_details_id = origin_details.id
+            SELECT id, name, count FROM coffee
         """;
 
         return client.sql(query)
@@ -32,13 +27,6 @@ public class CoffeeRepositoryImpl implements CustomCoffeeRepository {
                     coffee.setId(row.get("id", Long.class));
                     coffee.setName(row.get("name", String.class));
                     coffee.setCount(row.get("count", Long.class));
-                    coffee.setOriginDetailsId(row.get("origin_details_id", Long.class));
-
-                    OriginDetails originDetails = new OriginDetails();
-                    originDetails.setId(row.get("origin_id", Long.class));
-                    originDetails.setFarm(row.get("farm", String.class));
-                    originDetails.setRegion(row.get("region", String.class));
-                    originDetails.setCountry(row.get("country", String.class));
 
                     return coffee;
                 })
@@ -48,12 +36,8 @@ public class CoffeeRepositoryImpl implements CustomCoffeeRepository {
     @Override
     public Mono<Coffee> findCoffeeById(Long id) {
         String query = """
-            SELECT coffee.id, coffee.name, coffee.count, coffee.origin_details_id,
-                   origin_details.id AS origin_id, origin_details.farm, 
-                   origin_details.region, origin_details.country
-            FROM coffee
-            INNER JOIN origin_details ON coffee.origin_details_id = origin_details.id
-            WHERE coffee.id = :id
+            SELECT * 
+            FROM coffee where id = :id;
         """;
 
         return client.sql(query)
@@ -63,14 +47,6 @@ public class CoffeeRepositoryImpl implements CustomCoffeeRepository {
                     coffee.setId(row.get("id", Long.class));
                     coffee.setName(row.get("name", String.class));
                     coffee.setCount(row.get("count", Long.class));
-                    coffee.setOriginDetailsId(row.get("origin_details_id", Long.class));
-
-                    OriginDetails originDetails = new OriginDetails();
-                    originDetails.setId(row.get("origin_id", Long.class));
-                    originDetails.setFarm(row.get("farm", String.class));
-                    originDetails.setRegion(row.get("region", String.class));
-                    originDetails.setCountry(row.get("country", String.class));
-
                     return coffee;
                 })
                 .one()
@@ -80,39 +56,45 @@ public class CoffeeRepositoryImpl implements CustomCoffeeRepository {
     @Override
     public Mono<Coffee> createCoffee(Coffee coffee) {
         String query = """
-            INSERT INTO coffee (name, count, origin_details_id) 
-            VALUES (:name, :count, :originDetailsId) 
-            RETURNING id
+            INSERT INTO coffee (name, count) 
+            VALUES (:name, :count)
         """;
 
-        return client.sql(query)
-                .bind("name", coffee.getName())
-                .bind("count", coffee.getCount())
-                .bind("originDetailsId", coffee.getOriginDetailsId())
-                .map((row, metadata) -> row.get("id", Long.class))
-                .one()
-                .map(id -> {
-                    coffee.setId(id);
-                    return coffee;
-                });
+       return client.sql(query)
+               .bind("name", coffee.getName())
+               .bind("count", coffee.getCount())
+               .fetch()
+               .rowsUpdated()
+               .flatMap(rowsUpdated -> {
+                   if (rowsUpdated > 0) {
+                       return Mono.just(coffee);
+                   } else {
+                       return Mono.error(new RuntimeException("Failed to insert coffee"));
+                   }
+               });
     }
 
     @Override
     public Mono<Coffee> putCoffee(Long id, Coffee coffee) {
-        String query = """
-            UPDATE coffee 
-            SET name = :name, count = :count, origin_details_id = :originDetailsId 
-            WHERE id = :id
-        """;
+       String query = """
+           UPDATE coffee 
+           SET name = :name, count = :count 
+           WHERE id = :id
+       """;
 
-        return client.sql(query)
-                .bind("name", coffee.getName())
-                .bind("count", coffee.getCount())
-                .bind("originDetailsId", coffee.getOriginDetailsId())
-                .bind("id", id)
-                .fetch()
-                .rowsUpdated()
-                .flatMap(updatedRows -> updatedRows > 0 ? findCoffeeById(id) : Mono.empty());
+       return client.sql(query)
+               .bind("id", id)
+               .bind("name", coffee.getName())
+               .bind("count", coffee.getCount())
+               .fetch()
+               .rowsUpdated()
+               .flatMap(rowsUpdated -> {
+                   if (rowsUpdated > 0) {
+                       return  Mono.just(coffee);
+                   } else {
+                       return  Mono.error(new RuntimeException("Failed to update coffee with id"));
+                   }
+               });
     }
 
     @Override
